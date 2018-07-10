@@ -6,7 +6,7 @@ from configparser import ConfigParser
 from io import StringIO
 from functools import reduce
 from pipeline.interface import AbstractExecutor, AbstractLibrarySteps, stage_decorator
-
+from pipeline.version import Versioner
 import os
 
 
@@ -49,24 +49,10 @@ class JavaLibrarySteps(AbstractLibrarySteps):
             "(cd {} && ./gradlew artifactoryPublish --info --console plain)".format(self.repo_path), shell=True)
 
     def __compute_next_version(self):
+        versioner = Versioner()
         current_version = self.__read_properties().current_version
         latest_tag = self.__get_latest_tag()
-
-        latest_patch = latest_tag.split(".")[-1]
-        latest_tag_no_patch = remove_patch(latest_tag)
-        current_version_no_patch = remove_patch(current_version)
-
-        next_patch = 0 if StrictVersion(current_version_no_patch) > StrictVersion(
-            latest_tag_no_patch) else int(latest_patch) + 1
-
-        next_version = "{}.{}".format(current_version_no_patch, next_patch)
-
-        if StrictVersion(next_version) <= StrictVersion(latest_tag):
-            raise ValueError(
-                "ERROR: Version computed ({}) is less than or equal to the previous version ({})!".format(next_version, latest_tag))
-
-        print("Computed next version {}.".format(next_version))
-        return next_version
+        return versioner.compute_next_version(current_version, latest_tag)
 
     def __create_and_push_tags(self, version):
         self.repo.create_tag(version)

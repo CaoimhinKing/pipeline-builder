@@ -30,3 +30,16 @@ class TestVersioner(unittest.TestCase):
         # Assert
         self.assertEqual(
             "Computed version (1.2.4) is less than or equal to previous version (1.3.3)", str(ctx.exception))
+
+    def test_should_reset_patch_if_major_or_minor_increases(self):
+        # Arrange
+        current = "1.3.x-SNAPSHOT"
+        previous = "1.2.4"
+        expected = "1.3.0"
+        versioner = Versioner()
+
+        # Act 
+        version = versioner.compute_next_version(current, previous)
+
+        # Assert
+        self.assertEqual(version, expected)

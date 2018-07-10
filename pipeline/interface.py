@@ -22,15 +22,16 @@ class AbstractExecutor(ABC):
     any pipeline process.
     """
 
-    def __init__(self):
+    def __init__(self, repo_path):
         super().__init__()
+        self.repo = Repo(repo_path)
 
     @abstractmethod
     def execute(self):
         pass
 
 
-class AbstractSteps(ABC):
+class AbstractLibrarySteps(ABC):
     """
     Opinionated pipeline steps.
     """
@@ -48,5 +49,5 @@ class AbstractSteps(ABC):
         pass
 
     @abstractmethod
-    def deploy(self):
+    def publish(self):
         pass

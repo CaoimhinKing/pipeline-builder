@@ -12,6 +12,6 @@ if __name__ == "__main__":
 
     Pipeline = getattr(importlib.import_module(
         pipeline_module), pipeline_name)
-    pipeline = Pipeline()
-
-    pipeline.execute(metadata)
+    
+    pipeline = Pipeline(metadata)
+    pipeline.execute()

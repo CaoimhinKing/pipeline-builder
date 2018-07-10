@@ -5,33 +5,50 @@ from distutils.version import StrictVersion
 from configparser import ConfigParser
 from io import StringIO
 from functools import reduce
-from pipeline.interface import AbstractExecutor, AbstractSteps, stage_decorator
+from pipeline.interface import AbstractExecutor, AbstractLibrarySteps, stage_decorator
 
 import os
 
 
-class JavaExecutor(AbstractExecutor):
-    def execute(self, metadata):
-        steps = JavaSteps(metadata)
+class JavaLibraryExecutor(AbstractExecutor):
+    def __init__(self, metadata):
+        self.__repo_path = "{}/the-repo".format(os.getcwd())
+        check_call("git clone {} {}".format(
+            metadata.repo_url, self.__repo_path), shell=True)
+        super().__init__(self.__repo_path)
+        self.__metadata = metadata
+
+    def execute(self):
+        self.repo.git.checkout(self.__metadata.branch)
+        steps = JavaLibrarySteps(self.__repo_path, self.__metadata)
         steps.build()
         steps.version()
-        steps.deploy()
+        if self.__metadata.branch == "master":
+            steps.publish()
 
 
-class JavaSteps(AbstractSteps):
-    def __init__(self, metadata):
+class JavaLibrarySteps(AbstractLibrarySteps):
+    def __init__(self, repo_path, metadata):
         self.repo_path = "{}/the-repo".format(os.getcwd())
-        check_call("git clone {} {}".format(
-            metadata.repo_url, self.repo_path), shell=True)
         super().__init__(self.repo_path)
+        self.__next_version = self.__compute_next_version()
 
     @stage_decorator
     def build(self):
         check_call(
-            "(cd {} && ./gradlew clean build --console plain --refresh-dependencies)".format(self.repo_path), shell=True)
+            "(cd {} && ./gradlew clean build --console plain --info --refresh-dependencies)".format(self.repo_path), shell=True)
 
     @stage_decorator
     def version(self):
+        print("Creating tag for version {}".format(self.__next_version))
+        self.__create_and_push_tags(self.__next_version)
+
+    @stage_decorator
+    def publish(self):
+        check_call(
+            "(cd {} && ./gradlew artifactoryPublish --info --console plain)".format(self.repo_path), shell=True)
+
+    def __compute_next_version(self):
         current_version = self.__read_properties().current_version
         latest_tag = self.__get_latest_tag()
 
@@ -46,15 +63,10 @@ class JavaSteps(AbstractSteps):
 
         if StrictVersion(next_version) <= StrictVersion(latest_tag):
             raise ValueError(
-                "ERROR: Version computed ({}) is less than the previous version ({})!".format(next_version, latest_tag))
+                "ERROR: Version computed ({}) is less than or equal to the previous version ({})!".format(next_version, latest_tag))
 
         print("Computed next version {}.".format(next_version))
-
-        self.__create_and_push_tags(next_version)
-
-    @stage_decorator
-    def deploy(self):
-        pass
+        return next_version
 
     def __create_and_push_tags(self, version):
         self.repo.create_tag(version)

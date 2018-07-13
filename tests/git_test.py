@@ -1,6 +1,6 @@
 import unittest
 
-from pipeline.git import Git
+from pipeline.vcs import Git
 
 
 class TestGit(unittest.TestCase):
